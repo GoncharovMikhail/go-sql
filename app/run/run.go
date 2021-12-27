@@ -3,14 +3,14 @@ package run
 import (
 	builtInSql "database/sql"
 	"fmt"
+	"github.com/GoncharovMikhail/go-sql/delivery/http/user"
+	"github.com/GoncharovMikhail/go-sql/internal/db"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/user/impl/sql"
+	userService "github.com/GoncharovMikhail/go-sql/pkg/service/user"
+	"github.com/GoncharovMikhail/go-sql/pkg/service/user/impl"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v4"
 	"log"
-	"sql/delivery/http/user"
-	"sql/internal/db"
-	"sql/pkg/db/user/impl/sql"
-	userService "sql/pkg/service/user"
-	"sql/pkg/service/user/impl"
 )
 
 func Run() error {

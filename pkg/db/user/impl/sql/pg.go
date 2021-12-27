@@ -3,8 +3,8 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/user"
 	"github.com/Masterminds/squirrel"
-	"sql/pkg/db/user"
 )
 
 type PostgresUserRepository struct {

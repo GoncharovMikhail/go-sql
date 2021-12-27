@@ -1,12 +1,10 @@
-module github.com/atkinsonbg/go-gmux-db-testcontainers
+module github.com/GoncharovMikhail/go-sql
 
 go 1.17
 
 require (
 	github.com/Masterminds/squirrel v1.5.2
-	github.com/atkinsonbg/go-gmux-db-testcontainers v0.0.0-20210123160844-a46ed7ad99ed
 	github.com/gin-gonic/gin v1.7.7
-	github.com/gorilla/mux v1.7.4
 	github.com/jackc/pgtype v1.9.1
 	github.com/jackc/pgx/v4 v4.14.1
 	github.com/testcontainers/testcontainers-go v0.12.0
@@ -17,7 +15,6 @@ require (
 	github.com/Microsoft/go-winio v0.4.17-0.20210211115548-6eac466e5fa3 // indirect
 	github.com/Microsoft/hcsshim v0.8.16 // indirect
 	github.com/cenkalti/backoff v2.2.1+incompatible // indirect
-	github.com/cenkalti/backoff/v4 v4.0.2 // indirect
 	github.com/containerd/cgroups v0.0.0-20210114181951-8a68de567b68 // indirect
 	github.com/containerd/containerd v1.5.0-beta.4 // indirect
 	github.com/docker/distribution v2.7.1+incompatible // indirect
@@ -33,6 +30,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20200121045136-8c9f03a8e57e // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/google/uuid v1.3.0 // indirect
+	github.com/gorilla/mux v1.7.4 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.10.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
@@ -40,11 +38,9 @@ require (
 	github.com/jackc/pgproto3/v2 v2.2.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20200714003250-2b9c44734f2b // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
-	github.com/kelseyhightower/envconfig v1.4.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/leodido/go-urn v1.2.1 // indirect
-	github.com/lib/pq v1.10.2 // indirect
 	github.com/magiconair/properties v1.8.5 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/moby/sys/mount v0.2.0 // indirect

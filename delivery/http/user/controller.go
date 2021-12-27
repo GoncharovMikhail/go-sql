@@ -2,10 +2,10 @@ package user
 
 import (
 	"fmt"
+	webConsts "github.com/GoncharovMikhail/go-sql/const"
+	model "github.com/GoncharovMikhail/go-sql/model/user"
+	"github.com/GoncharovMikhail/go-sql/pkg/service/user"
 	"github.com/gin-gonic/gin"
-	webConsts "sql/const"
-	model "sql/model/user"
-	"sql/pkg/service/user"
 )
 
 type UserController struct {

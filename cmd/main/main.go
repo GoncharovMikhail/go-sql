@@ -1,8 +1,8 @@
 package main
 
 import (
+	"github.com/GoncharovMikhail/go-sql/app/run"
 	"log"
-	"sql/app/run"
 )
 
 func main() {

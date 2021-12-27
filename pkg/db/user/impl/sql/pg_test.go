@@ -2,17 +2,16 @@ package sql
 
 import (
 	"database/sql"
+	db "github.com/GoncharovMikhail/go-sql/pkg/db/user"
 	uuid "github.com/jackc/pgtype/ext/gofrs-uuid"
-	"github.com/testcontainers/testcontainers-go"
-	db "sql/pkg/db/user"
 	"testing"
 )
 
-type pgContainer struct {
+/*type pgContainer struct {
 	testcontainers.Container
 }
-
-var pgC *pgContainer = nil
+*/
+//var pgC *pgContainer = nil
 
 func init() {
 
