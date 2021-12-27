@@ -14,8 +14,6 @@ type pgContainer struct {
 	testcontainers.Container
 }
 
-//
-
 var (
 	packageName = "db"
 
