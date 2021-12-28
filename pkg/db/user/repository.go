@@ -6,5 +6,5 @@ import (
 
 type UserRepository interface {
 	Save(context.Context, *UserEntity) (*UserEntity, error)
-	FindOneByUsername(ctx context.Context, username string) (retUser *UserEntity, retErr error)
+	FindOneByUsername(ctx context.Context, username string) (*UserEntity, error)
 }

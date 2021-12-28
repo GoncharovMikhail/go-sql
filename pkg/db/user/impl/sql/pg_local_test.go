@@ -12,6 +12,7 @@ import (
 	"testing"
 )
 
+//eagerInit
 var (
 	dbURL      = `postgresql://localhost:5432/postgres`
 	dbUsername = `postgres`
@@ -29,6 +30,7 @@ var (
 			},
 		},
 	}
+	ctx = context.Background()
 )
 
 //lateInit
@@ -55,7 +57,7 @@ func TestPostgresUserRepository_Save_NoRestoreData(t *testing.T) {
 		panic(err)
 	}
 	save, err := repository.Save(
-		context.Background(),
+		ctx,
 		&user.UserEntity{
 			Username:    uuidUsername.String(),
 			Password:    "pwd",
@@ -80,7 +82,7 @@ func TestPostgresUserRepository_Save_EmailInRestoreData(t *testing.T) {
 		},
 	}
 	save, err := repository.Save(
-		context.Background(),
+		ctx,
 		entityToSave,
 	)
 	assert.NilError(t, err)
@@ -90,12 +92,8 @@ func TestPostgresUserRepository_Save_EmailInRestoreData(t *testing.T) {
 }
 
 func TestPostgresUserRepository_Save_FullyQualifiedRestoreData(t *testing.T) {
-	uuidUsername, err := uuid.NewV1()
-	if err != nil {
-		panic(err)
-	}
 	save, err := repository.Save(
-		context.Background(),
+		ctx,
 		&user.UserEntity{
 			Username: uuidUsername.String(),
 			Password: "pwd",
@@ -112,4 +110,19 @@ func TestPostgresUserRepository_Save_FullyQualifiedRestoreData(t *testing.T) {
 	assert.Assert(t, save != nil)
 	assert.Assert(t, &entityToSave.Id != nil)
 	assert.Assert(t, fmt.Sprintf("%v", entityToSave.Id) == fmt.Sprintf("%v", entityToSave.RestoreData.UserId))
+}
+
+func TestPostgresUserRepository_FindOneByUsername(t *testing.T) {
+	usernameToSaveAndThenFindBy := "9effb80d-682a-11ec-b382-40b076dc5f54"
+	entityToSaveAndThenFindBy := &user.UserEntity{
+		Username: uuidUsername.String(),
+		Password: "pwd",
+	}
+	_, _ = repository.Save(ctx, entityToSaveAndThenFindBy)
+	entity, err := repository.FindOneByUsername(ctx, usernameToSaveAndThenFindBy)
+	if err != nil {
+		panic(err)
+	}
+	assert.Assert(t, entity != nil)
+	assert.Assert(t, entity.Username == usernameToSaveAndThenFindBy)
 }

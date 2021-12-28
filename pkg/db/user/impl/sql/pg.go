@@ -5,21 +5,20 @@ import (
 	"database/sql"
 	"github.com/GoncharovMikhail/go-sql/pkg/db/user"
 	"github.com/Masterminds/squirrel"
+	"strings"
 )
 
 type PostgresUserRepository struct {
 	Db *sql.DB
 }
 
-var sb = squirrel.StatementBuilderType{}
-
 const (
 	saveUserQuery        = `INSERT INTO "user"(username, password) VALUES ($1, $2) RETURNING *`
 	saveRestoreDataQuery = `INSERT INTO restore_data(user_id, email, phone_number) VALUES ($1, $2, $3) RETURNING *`
 )
 
-func (s *PostgresUserRepository) Save(ctx context.Context, entity *user.UserEntity) (*user.UserEntity, error) {
-	tx, err := s.Db.BeginTx(ctx, &sql.TxOptions{
+func (repository *PostgresUserRepository) Save(ctx context.Context, entity *user.UserEntity) (*user.UserEntity, error) {
+	tx, err := repository.Db.BeginTx(ctx, &sql.TxOptions{
 		Isolation: sql.LevelDefault,
 		ReadOnly:  false,
 	})
@@ -65,31 +64,28 @@ func (s *PostgresUserRepository) Save(ctx context.Context, entity *user.UserEnti
 	return entity, nil
 }
 
-func (s *PostgresUserRepository) FindOneByUsername(ctx context.Context, username string) (retUser *user.UserEntity, retErr error) {
-	query := sb.
+func (repository *PostgresUserRepository) FindOneByUsername(ctx context.Context, username string) (*user.UserEntity, error) {
+	query, args, err := squirrel.
 		Select("*").
 		From("\"user\"").
 		Where(map[string]interface{}{"username": username}).
-		Limit(1)
-	rows, err := query.QueryContext(ctx)
+		ToSql()
 	if err != nil {
-		//return status.Error(codes.Internal, retErr.Error()), nil
+		return nil, err
 	}
-	defer func() {
-		cerr := rows.Close()
-		if retErr == nil && cerr != nil {
-			//retErr = status.Error(codes.Internal, cerr.Error())
-		}
-	}()
-	for rows.Next() {
-		err := rows.Scan(
-			&retUser.Id,
-			&retUser.Username,
-			&retUser.Password,
-		)
-		if err != nil {
-			retErr = err
-		}
+	replace := strings.Replace(query, "?", "$1", -1)
+	row := repository.Db.QueryRowContext(ctx, replace, args[0].(string))
+	if row.Err() != nil {
+		return nil, row.Err()
 	}
-	return retUser, retErr
+	var retUser user.UserEntity
+	err = row.Scan(
+		&retUser.Id,
+		&retUser.Username,
+		&retUser.Password,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &retUser, nil
 }
