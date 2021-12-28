@@ -2,98 +2,114 @@ package sql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
-	"os"
-	"strings"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/user"
+	"github.com/gofrs/uuid"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/stdlib"
+	"gotest.tools/assert"
 	"testing"
 )
 
-type pgContainer struct {
-	testcontainers.Container
-}
-
 var (
-	packageName = "db"
+	dbURL      = `postgresql://localhost:5432/postgres`
+	dbUsername = `postgres`
+	dbPassword = `102030AaBb`
 
-	//lateInit
-	pgC *pgContainer
+	uuidUsername, _ = uuid.NewV1()
+	entityToSave    = &user.UserEntity{
+		Username: uuidUsername.String(),
+		Password: "pwd",
+		RestoreData: &user.RestoreData{
+			Email: uuidUsername.String(),
+			PhoneNumber: sql.NullString{
+				String: "phone_number",
+				Valid:  true,
+			},
+		},
+	}
 )
 
-// Create the Postgres TestContainer
-func init() {
+//lateInit
+var (
+	repository user.UserRepository
+)
 
-	workingDir, err := os.Getwd()
+func init() {
+	config, err := pgx.ParseConfig(dbURL)
 	if err != nil {
 		panic(err)
 	}
-	rootDir := strings.Replace(workingDir, packageName, "", 1)
-	mountFrom := fmt.Sprintf("%sresources/migrations/001__schema.up.sql", rootDir)
-	mountTo := "/docker-entrypoint-initdb.d/init.sql"
-	ctx := context.Background()
-	req := testcontainers.ContainerRequest{
-		Image:        "postgres:11.6-alpine",
-		ExposedPorts: []string{"5432/tcp"},
-		BindMounts:   map[string]string{mountFrom: mountTo},
-		Env: map[string]string{
-			"POSTGRES_DB": os.Getenv("DBNAME"),
-		},
-		WaitingFor: wait.ForLog("database system is ready to accept connections"),
+	config.User = dbUsername
+	config.Password = dbPassword
+	openDB := stdlib.OpenDB(*config)
+	repository = &PostgresUserRepository{
+		openDB,
 	}
-	tcC, err := testcontainers.GenericContainer(
-		ctx,
-		testcontainers.GenericContainerRequest{
-			ContainerRequest: req,
-			Started:          true,
-		},
-	)
-	if err != nil {
-		panic(err)
-	}
-	pgC = &pgContainer{tcC}
-	print(pgC)
 }
 
-func TestMain(m *testing.M) {
-	defer func(container pgContainer, ctx context.Context) {
-		_ = container.Terminate(ctx)
-	}(*pgC, context.Background())
-	// Work out the path to the 'scripts' directory and set mount strings
-	packageName := "database"
-	workingDir, _ := os.Getwd()
-	rootDir := strings.Replace(workingDir, packageName, "", 1)
-	mountFrom := fmt.Sprintf("%s/scripts/init.sql", rootDir)
-	mountTo := "/docker-entrypoint-initdb.d/init.sql"
-	// Create the Postgres TestContainer
-	ctx := context.Background()
-	req := testcontainers.ContainerRequest{
-		Image:        "postgres:11.6-alpine",
-		ExposedPorts: []string{"5432/tcp"},
-		BindMounts:   map[string]string{mountFrom: mountTo},
-		Env: map[string]string{
-			"POSTGRES_DB": os.Getenv("DBNAME"),
-		},
-		WaitingFor: wait.ForLog("database system is ready to accept connections"),
-	}
-	postgresC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
-		ContainerRequest: req,
-		Started:          true,
-	})
+func TestPostgresUserRepository_Save_NoRestoreData(t *testing.T) {
+	uuidUsername, err := uuid.NewV1()
 	if err != nil {
-		// Panic and fail since there isn't much we can do if the container doesn't start
 		panic(err)
 	}
-	defer func(postgresC testcontainers.Container, ctx context.Context) {
-		err := postgresC.Terminate(ctx)
-		if err != nil {
-			panic(err)
-		}
-	}(postgresC, ctx)
-	// Get the port mapped to 5432 and set as ENV
-	p, _ := postgresC.MappedPort(ctx, "5432")
-	_ = os.Setenv("DBPORT", p.Port())
-	exitVal := m.Run()
-	os.Exit(exitVal)
+	save, err := repository.Save(
+		context.Background(),
+		&user.UserEntity{
+			Username:    uuidUsername.String(),
+			Password:    "pwd",
+			RestoreData: nil,
+		},
+	)
+	assert.NilError(t, err)
+	assert.Assert(t, save != nil)
+	assert.Assert(t, &save.Id != nil)
+}
 
+func TestPostgresUserRepository_Save_EmailInRestoreData(t *testing.T) {
+	uuidUsername, err := uuid.NewV1()
+	if err != nil {
+		panic(err)
+	}
+	entityToSave := &user.UserEntity{
+		Username: uuidUsername.String(),
+		Password: "pwd",
+		RestoreData: &user.RestoreData{
+			Email: uuidUsername.String(),
+		},
+	}
+	save, err := repository.Save(
+		context.Background(),
+		entityToSave,
+	)
+	assert.NilError(t, err)
+	assert.Assert(t, save != nil)
+	assert.Assert(t, &entityToSave.Id != nil)
+	assert.Assert(t, fmt.Sprintf("%v", entityToSave.Id) == fmt.Sprintf("%v", entityToSave.RestoreData.UserId))
+}
+
+func TestPostgresUserRepository_Save_FullyQualifiedRestoreData(t *testing.T) {
+	uuidUsername, err := uuid.NewV1()
+	if err != nil {
+		panic(err)
+	}
+	save, err := repository.Save(
+		context.Background(),
+		&user.UserEntity{
+			Username: uuidUsername.String(),
+			Password: "pwd",
+			RestoreData: &user.RestoreData{
+				Email: uuidUsername.String(),
+				PhoneNumber: sql.NullString{
+					String: "phone_number",
+					Valid:  true,
+				},
+			},
+		},
+	)
+	assert.NilError(t, err)
+	assert.Assert(t, save != nil)
+	assert.Assert(t, &entityToSave.Id != nil)
+	assert.Assert(t, fmt.Sprintf("%v", entityToSave.Id) == fmt.Sprintf("%v", entityToSave.RestoreData.UserId))
 }

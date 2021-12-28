@@ -13,7 +13,12 @@ type UserEntity struct {
 }
 
 type RestoreData struct {
-	UserId      string         `db:"user_id"`
+	UserId      uuid.UUID      `db:"user_id"`
 	Email       string         `db:"email"`
 	PhoneNumber sql.NullString `db:"phone_number,omitempty"`
+}
+
+type AuthorityEntity struct {
+	Id   int64
+	Name string
 }

@@ -14,8 +14,8 @@ type PostgresUserRepository struct {
 var sb = squirrel.StatementBuilderType{}
 
 const (
-	saveUserQuery        = `INSERT INTO "user"(username, password) VALUES (?, ?) RETURNING *`
-	saveRestoreDataQuery = `INSERT INTO restore_data(user_id, email, phone_number) VALUES (?, ?, ?) RETURNING *`
+	saveUserQuery        = `INSERT INTO "user"(username, password) VALUES ($1, $2) RETURNING *`
+	saveRestoreDataQuery = `INSERT INTO restore_data(user_id, email, phone_number) VALUES ($1, $2, $3) RETURNING *`
 )
 
 func (s *PostgresUserRepository) Save(ctx context.Context, entity *user.UserEntity) (*user.UserEntity, error) {
@@ -27,19 +27,36 @@ func (s *PostgresUserRepository) Save(ctx context.Context, entity *user.UserEnti
 		return nil, err
 	}
 	rowUser := tx.QueryRowContext(ctx, saveUserQuery, entity.Username, entity.Password)
-	errIdScan := rowUser.Scan(&entity.Id)
+	errIdScan := rowUser.Scan(
+		&entity.Id,
+		&entity.Username,
+		&entity.Password,
+	)
 	if errIdScan != nil {
 		errTxRollback := tx.Rollback()
 		if errTxRollback != nil {
 			return nil, errTxRollback
 		}
-		return nil, err
+		return nil, errIdScan
 	}
 	if entity.RestoreData == nil {
+		err := tx.Commit()
+		if err != nil {
+			return nil, err
+		}
 		return entity, nil
 	}
-	if rowSaveRestoreData := tx.QueryRowContext(ctx, saveRestoreDataQuery, entity.Id, entity.Email, entity.PhoneNumber); rowSaveRestoreData.Err() != nil {
+	rowSaveRestoreData := tx.QueryRowContext(ctx, saveRestoreDataQuery, entity.Id, entity.Email, entity.PhoneNumber)
+	if rowSaveRestoreData.Err() != nil {
 		return nil, rowSaveRestoreData.Err()
+	}
+	errRestoreDataScan := rowSaveRestoreData.Scan(
+		&entity.RestoreData.UserId,
+		&entity.RestoreData.Email,
+		&entity.RestoreData.PhoneNumber,
+	)
+	if errRestoreDataScan != nil {
+		return nil, err
 	}
 	err = tx.Commit()
 	if err != nil {

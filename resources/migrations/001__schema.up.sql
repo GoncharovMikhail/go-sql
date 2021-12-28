@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS restore_data
             ON UPDATE CASCADE
             ON DELETE CASCADE,
     email            VARCHAR(255) NOT NULL UNIQUE,
-    telephone_number VARCHAR(255) DEFAULT NULL
+    phone_number VARCHAR(255) DEFAULT NULL
 );
 
 CREATE TABLE IF NOT EXISTS authority
