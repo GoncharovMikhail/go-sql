@@ -5,38 +5,37 @@ import (
 	"database/sql"
 	"github.com/GoncharovMikhail/go-sql/pkg/db/user"
 	"github.com/Masterminds/squirrel"
-	"strings"
 )
 
 type PostgresUserRepository struct {
 	Db *sql.DB
 }
 
-const (
-	saveUserQuery        = `INSERT INTO "user"(username, password) VALUES ($1, $2) RETURNING *`
-	saveRestoreDataQuery = `INSERT INTO restore_data(user_id, email, phone_number) VALUES ($1, $2, $3) RETURNING *`
-)
-
 func (repository *PostgresUserRepository) Save(ctx context.Context, entity *user.UserEntity) (*user.UserEntity, error) {
-	tx, err := repository.Db.BeginTx(ctx, &sql.TxOptions{
-		Isolation: sql.LevelDefault,
-		ReadOnly:  false,
-	})
+	tx, err := repository.Db.BeginTx(
+		ctx,
+		&sql.TxOptions{
+			Isolation: sql.LevelDefault,
+			ReadOnly:  false,
+		},
+	)
 	if err != nil {
 		return nil, err
 	}
-	rowUser := tx.QueryRowContext(ctx, saveUserQuery, entity.Username, entity.Password)
-	errIdScan := rowUser.Scan(
-		&entity.Id,
-		&entity.Username,
-		&entity.Password,
-	)
-	if errIdScan != nil {
+	err = squirrel.
+		Insert("\"user\"").
+		Columns("username", "password").
+		Values(entity.Username, entity.Password).
+		Suffix("RETURNING *").
+		PlaceholderFormat(squirrel.Dollar).
+		RunWith(repository.Db).
+		ScanContext(ctx, &entity.Id, &entity.Username, &entity.Password)
+	if err != nil {
 		errTxRollback := tx.Rollback()
 		if errTxRollback != nil {
 			return nil, errTxRollback
 		}
-		return nil, errIdScan
+		return nil, err
 	}
 	if entity.RestoreData == nil {
 		err := tx.Commit()
@@ -45,16 +44,15 @@ func (repository *PostgresUserRepository) Save(ctx context.Context, entity *user
 		}
 		return entity, nil
 	}
-	rowSaveRestoreData := tx.QueryRowContext(ctx, saveRestoreDataQuery, entity.Id, entity.Email, entity.PhoneNumber)
-	if rowSaveRestoreData.Err() != nil {
-		return nil, rowSaveRestoreData.Err()
-	}
-	errRestoreDataScan := rowSaveRestoreData.Scan(
-		&entity.RestoreData.UserId,
-		&entity.RestoreData.Email,
-		&entity.RestoreData.PhoneNumber,
-	)
-	if errRestoreDataScan != nil {
+	err = squirrel.
+		Insert("restore_data").
+		Columns("user_id", "email", "phone_number").
+		Values(entity.Id, entity.Email, &entity.PhoneNumber).
+		Suffix("RETURNING *").
+		PlaceholderFormat(squirrel.Dollar).
+		RunWith(repository.Db).
+		ScanContext(ctx, &entity.UserId, &entity.Email, &entity.PhoneNumber)
+	if err != nil {
 		return nil, err
 	}
 	err = tx.Commit()
@@ -69,12 +67,13 @@ func (repository *PostgresUserRepository) FindOneByUsername(ctx context.Context,
 		Select("*").
 		From("\"user\"").
 		Where(map[string]interface{}{"username": username}).
+		PlaceholderFormat(squirrel.Dollar).
+		RunWith(repository.Db).
 		ToSql()
 	if err != nil {
 		return nil, err
 	}
-	replace := strings.Replace(query, "?", "$1", -1)
-	row := repository.Db.QueryRowContext(ctx, replace, args[0].(string))
+	row := repository.Db.QueryRowContext(ctx, query, args)
 	if row.Err() != nil {
 		return nil, row.Err()
 	}

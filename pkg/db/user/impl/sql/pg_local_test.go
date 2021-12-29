@@ -12,12 +12,14 @@ import (
 	"testing"
 )
 
-//eagerInit
-var (
+const (
 	dbURL      = `postgresql://localhost:5432/postgres`
 	dbUsername = `postgres`
 	dbPassword = `102030AaBb`
+)
 
+//eagerInit
+var (
 	uuidUsername, _ = uuid.NewV1()
 	entityToSave    = &user.UserEntity{
 		Username: uuidUsername.String(),
@@ -88,7 +90,7 @@ func TestPostgresUserRepository_Save_EmailInRestoreData(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, save != nil)
 	assert.Assert(t, &entityToSave.Id != nil)
-	assert.Assert(t, fmt.Sprintf("%v", entityToSave.Id) == fmt.Sprintf("%v", entityToSave.RestoreData.UserId))
+	assert.Assert(t, fmt.Sprintf("%v", entityToSave.Id) == fmt.Sprintf("%v", entityToSave.UserId))
 }
 
 func TestPostgresUserRepository_Save_FullyQualifiedRestoreData(t *testing.T) {
@@ -120,9 +122,7 @@ func TestPostgresUserRepository_FindOneByUsername(t *testing.T) {
 	}
 	_, _ = repository.Save(ctx, entityToSaveAndThenFindBy)
 	entity, err := repository.FindOneByUsername(ctx, usernameToSaveAndThenFindBy)
-	if err != nil {
-		panic(err)
-	}
+	assert.NilError(t, err)
 	assert.Assert(t, entity != nil)
 	assert.Assert(t, entity.Username == usernameToSaveAndThenFindBy)
 }
