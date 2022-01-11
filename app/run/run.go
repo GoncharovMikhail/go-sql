@@ -19,7 +19,7 @@ func Run() error {
 		log.Panicf("")
 	}
 	defer closeDb(pg)
-	ur := sql.PostgresUserRepository{
+	ur := sql.postgresUserRepository{
 		Db: pg,
 	}
 	var us userService.UserService = &impl.UserServiceImpl{

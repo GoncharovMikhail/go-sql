@@ -2,7 +2,7 @@ package user
 
 import (
 	"fmt"
-	webConsts "github.com/GoncharovMikhail/go-sql/const"
+	webConsts "github.com/GoncharovMikhail/go-sql/const/main"
 	model "github.com/GoncharovMikhail/go-sql/model/user"
 	"github.com/GoncharovMikhail/go-sql/pkg/service/user"
 	"github.com/gin-gonic/gin"

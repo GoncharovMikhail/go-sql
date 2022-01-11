@@ -9,14 +9,28 @@ CREATE TABLE IF NOT EXISTS "user"
 
 CREATE TABLE IF NOT EXISTS restore_data
 (
-    user_id          UUID         NOT NULL UNIQUE,
+    user_id      UUID         NOT NULL UNIQUE,
     CONSTRAINT fk__restore_data__user__one_to_one
         FOREIGN KEY (user_id)
             REFERENCES "user" (id)
             ON UPDATE CASCADE
             ON DELETE CASCADE,
-    email            VARCHAR(255) NOT NULL UNIQUE,
+    email        VARCHAR(255) NOT NULL UNIQUE,
     phone_number VARCHAR(255) DEFAULT NULL
+);
+
+CREATE TABLE IF NOT EXISTS user_status
+(
+    user_id                 UUID PRIMARY KEY,
+    CONSTRAINT fk__user_status__user__one_to_one
+        FOREIGN KEY (user_id)
+            REFERENCES "user" (id)
+            ON UPDATE CASCADE
+            ON DELETE CASCADE,
+    account_non_expired     BOOLEAN NOT NULL DEFAULT TRUE,
+    account_non_locked      BOOLEAN NOT NULL DEFAULT TRUE,
+    credentials_non_expired BOOLEAN NOT NULL DEFAULT TRUE,
+    enabled                 BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE IF NOT EXISTS authority

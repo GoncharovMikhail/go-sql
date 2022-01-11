@@ -1,4 +1,4 @@
-package web_consts
+package main
 
 const (
 	ApiPath = "/api/"

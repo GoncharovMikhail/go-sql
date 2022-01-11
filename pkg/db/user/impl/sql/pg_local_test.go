@@ -3,126 +3,89 @@ package sql
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"github.com/GoncharovMikhail/go-sql/pkg/db/user"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/util"
+	"github.com/GoncharovMikhail/go-sql/pkg/entity"
 	"github.com/gofrs/uuid"
-	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/stdlib"
 	"gotest.tools/assert"
+	"log"
 	"testing"
 )
 
 const (
 	dbURL      = `postgresql://localhost:5432/postgres`
 	dbUsername = `postgres`
-	dbPassword = `102030AaBb`
+	dbPassword = `postgres`
 )
 
 //eagerInit
 var (
-	uuidUsername, _ = uuid.NewV1()
-	entityToSave    = &user.UserEntity{
-		Username: uuidUsername.String(),
-		Password: "pwd",
-		RestoreData: &user.RestoreData{
-			Email: uuidUsername.String(),
-			PhoneNumber: sql.NullString{
-				String: "phone_number",
-				Valid:  true,
-			},
-		},
-	}
 	ctx = context.Background()
 )
 
 //lateInit
 var (
-	repository user.UserRepository
+	entityToSave *entity.UserDataEntity
+	uuidUsername uuid.UUID
+	repository   user.SQLUserRepository
+	tx           *sql.Tx
 )
 
 func init() {
-	config, err := pgx.ParseConfig(dbURL)
+	var err error
+	uuidUsername, err = uuid.NewV1()
 	if err != nil {
-		panic(err)
+		log.Panic(err)
 	}
+	entityToSave = &entity.UserDataEntity{
+		Username: uuidUsername.String(),
+		Password: uuidUsername.String(),
+	}
+	config := util.MustParseConfig(dbURL)
 	config.User = dbUsername
 	config.Password = dbPassword
-	openDB := stdlib.OpenDB(*config)
-	repository = &PostgresUserRepository{
-		openDB,
-	}
-}
-
-func TestPostgresUserRepository_Save_NoRestoreData(t *testing.T) {
-	uuidUsername, err := uuid.NewV1()
-	if err != nil {
-		panic(err)
-	}
-	save, err := repository.Save(
+	db := stdlib.OpenDB(config)
+	defer util.MustCloseDb(db)
+	tx = util.MustBeginTx(
 		ctx,
-		&user.UserEntity{
-			Username:    uuidUsername.String(),
-			Password:    "pwd",
-			RestoreData: nil,
+		db,
+		&sql.TxOptions{
+			Isolation: sql.LevelDefault,
+			ReadOnly:  false,
 		},
 	)
-	assert.NilError(t, err)
+	repository = NewPostgresUserRepository()
+}
+
+func TestPostgresUserRepository_Save(t *testing.T) {
+	save, errors := repository.SaveInTx(
+		ctx,
+		entityToSave,
+		tx,
+	)
+	assert.Assert(t, errors == nil)
 	assert.Assert(t, save != nil)
 	assert.Assert(t, &save.Id != nil)
 }
 
-func TestPostgresUserRepository_Save_EmailInRestoreData(t *testing.T) {
-	uuidUsername, err := uuid.NewV1()
-	if err != nil {
-		panic(err)
-	}
-	entityToSave := &user.UserEntity{
-		Username: uuidUsername.String(),
-		Password: "pwd",
-		RestoreData: &user.RestoreData{
-			Email: uuidUsername.String(),
-		},
-	}
-	save, err := repository.Save(
+func TestPostgresUserRepository_FindOneByUsernameInTx(t *testing.T) {
+	TestPostgresUserRepository_Save(t)
+	config := util.MustParseConfig(dbURL)
+	config.User = dbUsername
+	config.Password = dbPassword
+	db := stdlib.OpenDB(config)
+	defer util.MustCloseDb(db)
+	tx = util.MustBeginTx(
 		ctx,
-		entityToSave,
-	)
-	assert.NilError(t, err)
-	assert.Assert(t, save != nil)
-	assert.Assert(t, &entityToSave.Id != nil)
-	assert.Assert(t, fmt.Sprintf("%v", entityToSave.Id) == fmt.Sprintf("%v", entityToSave.UserId))
-}
-
-func TestPostgresUserRepository_Save_FullyQualifiedRestoreData(t *testing.T) {
-	save, err := repository.Save(
-		ctx,
-		&user.UserEntity{
-			Username: uuidUsername.String(),
-			Password: "pwd",
-			RestoreData: &user.RestoreData{
-				Email: uuidUsername.String(),
-				PhoneNumber: sql.NullString{
-					String: "phone_number",
-					Valid:  true,
-				},
-			},
+		db,
+		&sql.TxOptions{
+			Isolation: sql.LevelDefault,
+			ReadOnly:  false,
 		},
 	)
-	assert.NilError(t, err)
-	assert.Assert(t, save != nil)
-	assert.Assert(t, &entityToSave.Id != nil)
-	assert.Assert(t, fmt.Sprintf("%v", entityToSave.Id) == fmt.Sprintf("%v", entityToSave.RestoreData.UserId))
-}
-
-func TestPostgresUserRepository_FindOneByUsername(t *testing.T) {
-	usernameToSaveAndThenFindBy := "9effb80d-682a-11ec-b382-40b076dc5f54"
-	entityToSaveAndThenFindBy := &user.UserEntity{
-		Username: uuidUsername.String(),
-		Password: "pwd",
-	}
-	_, _ = repository.Save(ctx, entityToSaveAndThenFindBy)
-	entity, err := repository.FindOneByUsername(ctx, usernameToSaveAndThenFindBy)
-	assert.NilError(t, err)
-	assert.Assert(t, entity != nil)
-	assert.Assert(t, entity.Username == usernameToSaveAndThenFindBy)
+	result, ok, errors := repository.FindOneByUsernameInTx(ctx, entityToSave.Username, tx)
+	assert.Assert(t, errors == nil)
+	assert.Assert(t, ok == true)
+	assert.Assert(t, result != nil)
 }

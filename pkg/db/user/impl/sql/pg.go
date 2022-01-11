@@ -3,88 +3,86 @@ package sql
 import (
 	"context"
 	"database/sql"
+	"github.com/GoncharovMikhail/go-sql/errors"
+	dbConsts "github.com/GoncharovMikhail/go-sql/pkg/db/consts"
 	"github.com/GoncharovMikhail/go-sql/pkg/db/user"
+	"github.com/GoncharovMikhail/go-sql/pkg/entity"
 	"github.com/Masterminds/squirrel"
 )
 
-type PostgresUserRepository struct {
-	Db *sql.DB
+type postgresUserRepository struct{}
+
+func NewPostgresUserRepository() user.SQLUserRepository {
+	return &postgresUserRepository{}
 }
 
-func (repository *PostgresUserRepository) Save(ctx context.Context, entity *user.UserEntity) (*user.UserEntity, error) {
-	tx, err := repository.Db.BeginTx(
-		ctx,
-		&sql.TxOptions{
-			Isolation: sql.LevelDefault,
-			ReadOnly:  false,
-		},
-	)
-	if err != nil {
-		return nil, err
-	}
-	err = squirrel.
+func (postgresUserRepository *postgresUserRepository) SaveInTx(
+	ctx context.Context,
+	entity *entity.UserDataEntity,
+	tx *sql.Tx,
+) (*entity.UserDataEntity, errors.Errors) {
+	err := squirrel.
 		Insert("\"user\"").
 		Columns("username", "password").
 		Values(entity.Username, entity.Password).
-		Suffix("RETURNING *").
+		Suffix(dbConsts.Suffix).
 		PlaceholderFormat(squirrel.Dollar).
-		RunWith(repository.Db).
+		RunWith(tx).
 		ScanContext(ctx, &entity.Id, &entity.Username, &entity.Password)
 	if err != nil {
 		errTxRollback := tx.Rollback()
 		if errTxRollback != nil {
-			return nil, errTxRollback
+			return nil,
+				errors.NewErrors(
+					errors.BuildSimpleErrMsg("err", err),
+					err,
+					errors.NewErrors(
+						errors.BuildSimpleErrMsg("errTxRollback", errTxRollback),
+						errTxRollback,
+						nil,
+					),
+				)
 		}
-		return nil, err
-	}
-	if entity.RestoreData == nil {
-		err := tx.Commit()
-		if err != nil {
-			return nil, err
-		}
-		return entity, nil
-	}
-	err = squirrel.
-		Insert("restore_data").
-		Columns("user_id", "email", "phone_number").
-		Values(entity.Id, entity.Email, &entity.PhoneNumber).
-		Suffix("RETURNING *").
-		PlaceholderFormat(squirrel.Dollar).
-		RunWith(repository.Db).
-		ScanContext(ctx, &entity.UserId, &entity.Email, &entity.PhoneNumber)
-	if err != nil {
-		return nil, err
+		return nil, errors.NewErrors(
+			errors.BuildSimpleErrMsg("err", err),
+			err,
+			nil,
+		)
 	}
 	err = tx.Commit()
 	if err != nil {
-		return nil, err
+		return nil, errors.NewErrors(
+			errors.BuildSimpleErrMsg("err", err),
+			err,
+			nil,
+		)
 	}
 	return entity, nil
 }
 
-func (repository *PostgresUserRepository) FindOneByUsername(ctx context.Context, username string) (*user.UserEntity, error) {
-	query, args, err := squirrel.
+func (postgresUserRepository *postgresUserRepository) FindOneByUsernameInTx(
+	ctx context.Context,
+	username string,
+	tx *sql.Tx,
+) (*entity.UserDataEntity, bool, errors.Errors) {
+	var ue = &entity.UserDataEntity{}
+	err := squirrel.
 		Select("*").
 		From("\"user\"").
-		Where(map[string]interface{}{"username": username}).
+		Where(squirrel.Eq{"username": username}).
 		PlaceholderFormat(squirrel.Dollar).
-		RunWith(repository.Db).
-		ToSql()
+		RunWith(tx).
+		ScanContext(ctx, &ue.Id, &ue.Username, &ue.Password)
 	if err != nil {
-		return nil, err
+		return nil,
+			false,
+			errors.NewErrors(
+				errors.BuildSimpleErrMsg("err", err),
+				err,
+				nil,
+			)
 	}
-	row := repository.Db.QueryRowContext(ctx, query, args)
-	if row.Err() != nil {
-		return nil, row.Err()
-	}
-	var retUser user.UserEntity
-	err = row.Scan(
-		&retUser.Id,
-		&retUser.Username,
-		&retUser.Password,
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &retUser, nil
+	return ue,
+		true,
+		nil
 }

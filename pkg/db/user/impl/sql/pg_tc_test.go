@@ -1,14 +1,7 @@
 package sql
 
 import (
-	"context"
-	"database/sql"
-	"fmt"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/user"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
-	"gotest.tools/assert"
-	"testing"
 )
 
 type pgContainer struct {
@@ -16,6 +9,7 @@ type pgContainer struct {
 	URI string
 }
 
+/*
 func getPgContainer(ctx context.Context) (*pgContainer, error) {
 	req := testcontainers.ContainerRequest{
 		Image:        "postgres",
@@ -130,14 +124,16 @@ func TestIntegrationDBInsertSelect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	repository := &PostgresUserRepository{db}
-	save, err := repository.Save(ctx, &user.UserEntity{
-		Username:    "",
-		Password:    "",
-		RestoreData: nil,
+	repository := &postgresUserRepository{db}
+	save, err := repository.SaveInTx(ctx, &entity.UserEntity{
+		Username:          "",
+		Password:          "",
+		RestoreDataEntity: nil,
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	assert.Assert(t, save != nil)
 }
+
+*/
