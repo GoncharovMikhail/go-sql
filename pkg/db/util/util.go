@@ -14,12 +14,12 @@ func MustCloseDb(db *sql.DB) {
 	}
 }
 
-func MustParseConfig(dbURL string) pgx.ConnConfig {
+func MustParseConfig(dbURL string) *pgx.ConnConfig {
 	config, err := pgx.ParseConfig(dbURL)
 	if err != nil {
 		log.Panic(err)
 	}
-	return *config
+	return config
 }
 
 func MustBeginTx(ctx context.Context, db *sql.DB, options *sql.TxOptions) *sql.Tx {
