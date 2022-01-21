@@ -1,8 +1,11 @@
 version: "3.9"
+
 services:
+
   postgres:
-    container_name: postgres_container
     image: postgres:13.3-alpine
+    container_name: postgres
+    restart: unless-stopped
     command:
       - "postgres"
       - "-c"
@@ -33,13 +36,10 @@ services:
       - "pg_stat_statements.max=10000"
       - "-c"
       - "pg_stat_statements.track=all"
-    environment:
-      POSTGRES_DB: "postgres"
-      POSTGRES_USER: "postgres"
-      POSTGRES_PASSWORD: "postgres"
-      PGDATA: "/var/lib/postgresql/data/pgdata"
+    env_file:
+      - postgres/.env
     volumes:
-      - ./resources/migrations:/docker-entrypoint-initdb.d
+      - ../resources/migrations:/docker-entrypoint-initdb.d
     ports:
       - "5432:5432"
     healthcheck:
@@ -48,7 +48,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    restart: unless-stopped
     deploy:
       resources:
         limits:
@@ -57,54 +56,51 @@ services:
     networks:
       - postgres
 
-  pgadmin:
-    container_name: pgadmin_container
-    image: dpage/pgadmin4:5.7
-    command:
-      - "sudo mkdir var/lib/pgadmin/sessions"
-      - "-c"
-      - "sudo chown -R 5050:5050 ~/.laradock/data/pgadmin"
-      - "-c"
-      - "sudo chown -R 5050:5050 ~/./var/lib/pgadmin"
-      - "-c"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: "postgres@postgres.com"
-      PGADMIN_DEFAULT_PASSWORD: "postgres"
-      PGADMIN_CONFIG_SERVER_MODE: "False"
-    volumes:
-      - ./pgadmin:/var/lib/pgadmin
-    ports:
-      - "5050:80"
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 1G
-    networks:
-      - postgres
-
   postgres_exporter:
-    container_name: exporter_container
-    image: prometheuscommunity/postgres-exporter:v0.10.0
-    environment:
-      DATA_SOURCE_URI: "postgres:5432/postgres?sslmode=disable"
-      DATA_SOURCE_USER: "postgres"
-      DATA_SOURCE_PASS: "postgres"
-      PG_EXPORTER_EXTEND_QUERY_PATH: "/etc/postgres_exporter/queries.yaml"
-    volumes:
-      - ./queries.yaml:/etc/postgres_exporter/queries.yaml:ro
+    image: prometheuscommunity/postgres-exporter:v0.10.1
+    container_name: postgres-exporter
+    restart: unless-stopped
+    env_file:
+     prometheus/.env
     ports:
       - "9187:9187"
-    restart: unless-stopped
     deploy:
       resources:
         limits:
           cpus: '0.2'
           memory: 500M
+    volumes:
+      # - ./data:/prometheus-data
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+    depends_on:
+      postgres:
+        condition: service_healthy
+    links:
+      - postgres
     networks:
       - postgres
 
+  grafana:
+    #todo wtf versions
+    image: grafana/grafana:latest
+    container_name: grafana
+    env_file:
+      - grafana/.env
+    ports:
+      - "3000:3000"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 1G
+    networks:
+      - monitoring
+    external_links:
+      - postgres
+      #- monitoring
+
 networks:
   postgres:
+    driver: bridge
+  monitoring:
     driver: bridge
