@@ -18,6 +18,22 @@ var (
 )
 
 func init() {
+	repository = NewPostgresUserDataRepository()
+}
+
+func TestPostgresUserRepository_SaveInTx(t *testing.T) {
+	save, errorz := saveInTx()
+	saveInTxAsserts(t, save, errorz)
+}
+
+func TestPostgresUserRepository_FindOneByUsernameInTx(t *testing.T) {
+	save, errorz := saveInTx()
+	saveInTxAsserts(t, save, errorz)
+	result, ok, errorz := repository.FindOneByUsernameInTx(test.CTX, entityToSave.Username, test.GetTX(test.DB))
+	findOneByUsernameInTxAsserts(t, ok, result, errorz)
+}
+
+func saveInTx() (*entity.UserDataEntity, errors.Errors) {
 	var e error
 	uuidUsername, e = uuid.NewV1()
 	if e != nil {
@@ -27,33 +43,22 @@ func init() {
 		Username: uuidUsername.String(),
 		Password: uuidUsername.String(),
 	}
-	repository = NewPostgresUserRepository()
-}
-
-func TestPostgresUserRepository_Save(t *testing.T) {
-	save, errorz := saveInTx()
-	saveAsserts(t, save, errorz)
-}
-
-func TestPostgresUserRepository_FindOneByUsernameInTx(t *testing.T) {
-	save, errorz := saveInTx()
-	saveAsserts(t, save, errorz)
-	result, ok, errorz := repository.FindOneByUsernameInTx(test.CTX, entityToSave.Username, test.TX)
-	assert.Assert(t, errorz == nil)
-	assert.Assert(t, ok == true)
-	assert.Assert(t, result != nil)
-}
-
-func saveInTx() (*entity.UserDataEntity, errors.Errors) {
 	return repository.SaveInTx(
 		test.CTX,
 		entityToSave,
-		test.TX,
+		test.GetTX(test.DB),
 	)
 }
 
-func saveAsserts(t *testing.T, save *entity.UserDataEntity, errorz errors.Errors) {
+func saveInTxAsserts(t *testing.T, save *entity.UserDataEntity, errorz errors.Errors) {
 	assert.Assert(t, errorz == nil)
 	assert.Assert(t, save != nil)
 	assert.Assert(t, &save.Id != nil)
+}
+
+func findOneByUsernameInTxAsserts(t *testing.T, ok bool, result *entity.UserDataEntity, errorz errors.Errors) {
+	assert.Assert(t, result != nil)
+	assert.Assert(t, ok == true)
+	assert.Assert(t, errorz == nil)
+	//assert.Assert(t, result.Username == desiredUsername)
 }

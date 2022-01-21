@@ -10,13 +10,13 @@ import (
 	"github.com/Masterminds/squirrel"
 )
 
-type postgresUserRepository struct{}
+type postgresUserDataRepository struct{}
 
-func NewPostgresUserRepository() user.SQLUserRepository {
-	return &postgresUserRepository{}
+func NewPostgresUserDataRepository() user.SQLUserRepository {
+	return &postgresUserDataRepository{}
 }
 
-func (postgresUserRepository *postgresUserRepository) SaveInTx(
+func (postgresUserRepository *postgresUserDataRepository) SaveInTx(
 	ctx context.Context,
 	entity *entity.UserDataEntity,
 	tx *sql.Tx,
@@ -60,7 +60,7 @@ func (postgresUserRepository *postgresUserRepository) SaveInTx(
 	return entity, nil
 }
 
-func (postgresUserRepository *postgresUserRepository) FindOneByUsernameInTx(
+func (postgresUserRepository *postgresUserDataRepository) FindOneByUsernameInTx(
 	ctx context.Context,
 	username string,
 	tx *sql.Tx,

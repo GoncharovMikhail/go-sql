@@ -48,6 +48,16 @@ func (postgresRestoreDataRepository *postgresRestoreDataRepository) SaveInTx(ctx
 			)
 
 	}
+	err = tx.Commit()
+	if err != nil {
+		return nil,
+			errors.NewErrors(
+				errors.BuildSimpleErrMsg("err", err),
+				err,
+				nil,
+			)
+
+	}
 	return rde, nil
 }
 

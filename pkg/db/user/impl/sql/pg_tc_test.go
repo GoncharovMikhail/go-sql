@@ -124,7 +124,7 @@ func TestIntegrationDBInsertSelect(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	repository := &postgresUserRepository{db}
+	repository := &postgresUserDataRepository{db}
 	save, err := repository.SaveInTx(ctx, &entity.UserEntity{
 		Username:          "",
 		Password:          "",

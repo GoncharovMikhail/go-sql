@@ -22,7 +22,7 @@ var (
 	connConfigToUse = getConnConfigToUse(connConfig)
 
 	DB, _ = dbUtils.GetDb(connConfigToUse)
-	TX    = getTX(DB)
+	TX    = GetTX(DB)
 )
 
 //todo переделать)))
@@ -32,7 +32,7 @@ func getConnConfigToUse(config *pgx.ConnConfig) *pgx.ConnConfig {
 	return config
 }
 
-func getTX(db *sql.DB) *sql.Tx {
+func GetTX(db *sql.DB) *sql.Tx {
 	tx, err := db.BeginTx(CTX, &sql.TxOptions{
 		Isolation: sql.LevelDefault,
 		ReadOnly:  false,

@@ -41,7 +41,7 @@ func NewPostgresUserOps(db *sql.DB,
 func NewPostgresUserOpsWithDefaults(db *sql.DB) UserOps {
 	return NewPostgresUserOps(
 		db,
-		pgUserRepositoryPkg.NewPostgresUserRepository(),
+		pgUserRepositoryPkg.NewPostgresUserDataRepository(),
 		pdRestoreDataRepositoryPkg.NewPostgresRestoreDataRepository(db),
 		pgUserStatusRepositoryPkg.NewPostgresUserStatusRepository(db),
 	)
