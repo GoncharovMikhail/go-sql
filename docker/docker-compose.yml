@@ -1,11 +1,22 @@
-version: "3.9"
+version: '3.9'
+
+networks:
+  monitor-net:
+    driver: bridge
+
+volumes:
+  prometheus_data: {}
+  grafana_data: {}
 
 services:
 
   postgres:
-    image: postgres:13.3-alpine
+    image: postgres:14.1
     container_name: postgres
-    restart: unless-stopped
+    volumes:
+      - ../resources/migrations:/docker-entrypoint-initdb.d
+    env_file:
+      - postgres/.env
     command:
       - "postgres"
       - "-c"
@@ -36,14 +47,11 @@ services:
       - "pg_stat_statements.max=10000"
       - "-c"
       - "pg_stat_statements.track=all"
-    env_file:
-      - postgres/.env
-    volumes:
-      - ../resources/migrations:/docker-entrypoint-initdb.d
+    restart: unless-stopped
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d postgres"]
+      test: ["CMD-SHELL", "pg_isready -U habrpguser -d habrdb"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -53,54 +61,126 @@ services:
         limits:
           cpus: '1'
           memory: 4G
-    networks:
-      - postgres
 
-  postgres_exporter:
-    image: prometheuscommunity/postgres-exporter:v0.10.1
-    container_name: postgres-exporter
-    restart: unless-stopped
-    env_file:
-     prometheus/.env
-    ports:
-      - "9187:9187"
-    deploy:
-      resources:
-        limits:
-          cpus: '0.2'
-          memory: 500M
+  prometheus:
+    image: prom/prometheus:v2.32.1
+    container_name: prometheus
     volumes:
-      # - ./data:/prometheus-data
-      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
-    depends_on:
-      postgres:
-        condition: service_healthy
-    links:
-      - postgres
+      - ./prometheus:/etc/prometheus
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
+    restart: unless-stopped
+    expose:
+      - 9090
     networks:
-      - postgres
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
+
+  alertmanager:
+    image: prom/alertmanager:v0.23.0
+    container_name: alertmanager
+    volumes:
+      - ./alertmanager:/etc/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    restart: unless-stopped
+    expose:
+      - 9093
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
+
+  nodeexporter:
+    image: prom/node-exporter:v1.3.1
+    container_name: nodeexporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    expose:
+      - 9100
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.43.0
+    container_name: cadvisor
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      #- /cgroup:/cgroup:ro #doesn't work on MacOS only for Linux
+    restart: unless-stopped
+    expose:
+      - 8080
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
 
   grafana:
-    #todo wtf versions
-    image: grafana/grafana:latest
+    image: grafana/grafana:8.3.3
     container_name: grafana
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
     env_file:
       - grafana/.env
+    restart: unless-stopped
+    expose:
+      - 3000
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
+
+  pushgateway:
+    image: prom/pushgateway:v1.4.2
+    container_name: pushgateway
+    restart: unless-stopped
+    expose:
+      - 9091
+    networks:
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
+
+  caddy:
+    image: caddy:2.3.0
+    container_name: caddy
     ports:
       - "3000:3000"
-    deploy:
-      resources:
-        limits:
-          cpus: '0.2'
-          memory: 1G
+      - "9090:9090"
+      - "9093:9093"
+      - "9091:9091"
+    volumes:
+      - ./caddy:/etc/caddy
+    env_file:
+      - caddy/.env
+    restart: unless-stopped
     networks:
-      - monitoring
-    external_links:
-      - postgres
-      #- monitoring
-
-networks:
-  postgres:
-    driver: bridge
-  monitoring:
-    driver: bridge
+      - monitor-net
+    labels:
+      org.label-schema.group: "monitoring"
