@@ -1,0 +1,145 @@
+# todo это что вообще
+networks:
+  monitor_net:
+#    driver: bridge
+#    ipam:
+#      config:
+#        -subnet: 172.20.0.0/16
+
+x-common: &common
+  #todo я ничего не понял https://blog.phusion.nl/2015/01/20/docker-and-the-pid-1-zombie-reaping-problem/
+  init: true
+
+services:
+  postgres:
+    <<: *common
+    image: postgres:${POSTGRES_VERSION:-14.1-alpine}
+    container_name: postgres
+    env_file:
+      - "${POSTGRES__ENV_FILE:-resources/docker/postgres/.env}"
+    #todo норм параметры?
+    command:
+      - "postgres"
+      - "-c"
+      - "work_mem=16MB"
+      - "-c"
+      - "maintenance_work_mem=512MB"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "temp_file_limit=10GB"
+      - "-c"
+      - "log_min_duration_statement=200ms"
+      - "-c"
+      - "idle_in_transaction_session_timeout=10s"
+      - "-c"
+      - "lock_timeout=1s"
+      - "-c"
+      - "statement_timeout=60s"
+      - "-c"
+      - "shared_preload_libraries=pg_stat_statements"
+      - "-c"
+      - "pg_stat_statements.max=10000"
+      - "-c"
+      - "pg_stat_statements.track=all"
+      #todo fix - not working
+      #volumes:
+      # - .:/docker-entrypoint-initdb.d
+      #-./postgres:/var/lib/postgresql/data
+    ports:
+      # Expose only 1 port. Default is postgresql://localhost:5432/postgres for local dev
+      - "${POSTGRES_PORTS:-127.0.0.1:5432}:${POSTGRES_PORTS_VIRTUAL:-5432}"
+    healthcheck:
+      test: [ "CMD-SHELL", "${POSTGRES__HEALTHCHECK__TEST:-pg_isready -d ${POSTGRES_DB:-postgres} -U ${POSTGRES_USER:-postgres}}" ]
+      interval: "${POSTGRES__HEALTHCHECK__INTERVAL:-60s}"
+      timeout: "${POSTGRES__HEALTHCHECK__TIMEOUT:-5s}"
+      start_period: "${POSTGRES__HEALTHCHECK__TIMEOUT:-5s}"
+      retries: "${POSTGRES__HEALTHCHECK__RETRIES:-5}"
+    deploy:
+      mode: replicated
+      replicas: "${POSTGRES__DEPLOY__REPLICAS:-1}"
+      placement:
+        max_replicas_per_node: "${POSTGRES__DEPLOY__PLACEMENT__MAX_REPLICAS_PER_NODE:-1}"
+      update_config:
+        parallelism: "${POSTGRES__DEPLOY__UPDATE_CONFIG__PARALLELISM:-1}"
+        delay: "${POSTGRES__DEPLOY__UPDATE_CONFIG__DELAY:-10s}"
+        order: "${POSTGRES__DEPLOY__UPDATE_CONFIG__ORDER:-stop-first}"
+        failure_action: "${POSTGRES__DEPLOY__UPDATE_CONFIG__FAILURE_ACTION:-rollback}"
+        max_failure_ratio: "${POSTGRES__DEPLOY__UPDATE_CONFIG__MAX_FAILURE_RATIO:-1}"
+      restart_policy:
+        condition: "${POSTGRES__DEPLOY__RESTART_POLICY__CONDITION:-on-failure}"
+        delay: "${POSTGRES__DEPLOY__RESTART_POLICY__DELAY:-5S}"
+        max_attempts: "${POSTGRES__DEPLOY__RESTART_POLICY__MAX_ATTEMPTS:-5}"
+        window: "${POSTGRES__DEPLOY__RESTART_POLICY__WINDOW:-5}"
+      resources:
+        limits:
+          cpus: "${POSTGRES__DEPLOY__RESOURCES__LIMITS__CPUS:-1}"
+          memory: "${POSTGRES__DEPLOY__RESOURCES__LIMITS__MEMORY:-4G}"
+        reservations:
+          cpus: "${POSTGRES__DEPLOY__RESOURCES__RESERVATIONS__CPUS:-0.50}"
+          memory: "${POSTGRES__DEPLOY__RESOURCES__RESERVATIONS__MEMORY:-2G}"
+    restart: '${RESTART:-unless-stopped}'
+    stop_grace_period: '${STOP_GRACE_PERIOD:-5S}'
+
+#  prometheus:
+#    <<: *common
+#    image: prom/prometheus:${PROMETHEUS_VERSION:-v2.32.0}
+#    container_name: prometheus
+#    env_file:
+#      - "${PROMETHEUS__ENV_FILE:-prometheus/prometheus.yml}"
+#    volumes:
+#      - ./prometheus/data:/prometheus-data
+#      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+#
+#    #    command:
+#    #      -
+#
+#    ports:
+#      # Expose only 1 port. Default is http://localhost:9000 for local dev
+#      - "${PROMETHEUS__PORTS:-127.0.0.1:9000}:${PROMETHEUS__PORTS__VIRTUAL:-9000}"
+#    healthcheck:
+#      test: [ "CMD-SHELL", "curl -f ${PROMETHEUS_HOST:-127.0.0.1}:${PROMETHEUS__PORTS:-9000}/api/health && echo 'ready'" ]
+#      interval: "${PROMETHEUS__HEALTHCHECK__INTERVAL:-60s}"
+#      timeout: "${PROMETHEUS__HEALTHCHECK__TIMEOUT:-5s}"
+#      start_period: "${PROMETHEUS__HEALTHCHECK__TIMEOUT:-5s}"
+#      retries: "${PROMETHEUS__HEALTHCHECK__RETRIES:-5}"
+#    # Docker swarm only
+#    deploy:
+#      replicas: "${PROMETHEUS__DEPLOY__REPLICAS:-1}"
+#      placement:
+#        max_replicas_per_node: "${PROMETHEUS__DEPLOY__PLACEMENT__MAX_REPLICAS_PER_NODE:-1}"
+#      update_config:
+#        parallelism: "${PROMETHEUS__DEPLOY__UPDATE_CONFIG__PARALLELISM:-1}"
+#        delay: "${PROMETHEUS__DEPLOY__UPDATE_CONFIG__DELAY:-10s}"
+#        order: "${PROMETHEUS__DEPLOY__UPDATE_CONFIG__ORDER:-stop-first}"
+#        failure_action: "${PROMETHEUS__DEPLOY__UPDATE_CONFIG__FAILURE_ACTION:-rollback}"
+#        max_failure_ratio: "${PROMETHEUS__DEPLOY__UPDATE_CONFIG__MAX_FAILURE_RATIO:-1}"
+#      restart_policy:
+#        condition: "${PROMETHEUS__DEPLOY__RESTART_POLICY__CONDITION:-on-failure}"
+#        delay: "${PROMETHEUS__DEPLOY__RESTART_POLICY__DELAY:-5S}"
+#        max_attempts: "${PROMETHEUS__DEPLOY__RESTART_POLICY__MAX_ATTEMPTS:-5}"
+#        window: "${PROMETHEUS__DEPLOY__RESTART_POLICY__WINDOW:-5}"
+#      resources:
+#        limits:
+#          cpus: "${PROMETHEUS__DEPLOY__RESOURCES__LIMITS__CPUS:-1}"
+#          memory: "${PROMETHEUS__DEPLOY__RESOURCES__LIMITS__MEMORY:-4G}"
+#        reservations:
+#          cpus: "${PROMETHEUS__DEPLOY__RESOURCES__RESERVATIONS__CPUS:-0.50}"
+#          memory: "${PROMETHEUS__DEPLOY__RESOURCES__RESERVATIONS__MEMORY:-2G}"
+#    restart: '${RESTART:-unless-stopped}'
+#    stop_grace_period: '${STOP_GRACE_PERIOD:-5S}'
+
+#  grafana:
+#    image: "grafana/grafana-enterprise:${GRAFANA_ENTERPRISE_VERSION:-8.3.4}"
+#    container_name: grafana
+#    depends_on:
+#      postgres:
+#        condition: service_started
+#    ports:
+#      - "3000:3000"
+#    volumes:
+#      - ./grafana:/var/lib/grafana
+#    env_file:
+#      - grafana/.env
+#    restart: '${RESTART:-unless-stopped}'
+#    stop_grace_period: '${STOP_GRACE_PERIOD:-5S}'

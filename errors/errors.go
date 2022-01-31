@@ -5,7 +5,7 @@ import "fmt"
 type Errors interface {
 	GetErrMsg() string
 	Get() error
-	Next() Errors
+	Cause() Errors
 }
 
 type errors struct {
@@ -22,7 +22,7 @@ func (e *errors) Get() error {
 	return e.err
 }
 
-func (e *errors) Next() Errors {
+func (e *errors) Cause() Errors {
 	return e.next
 }
 

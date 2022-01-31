@@ -1,23 +1,15 @@
-package sql
+package user_status
 
 import (
 	"context"
 	"database/sql"
 	"github.com/GoncharovMikhail/go-sql/errors"
 	dbConsts "github.com/GoncharovMikhail/go-sql/pkg/db/consts"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/user_status"
 	"github.com/GoncharovMikhail/go-sql/pkg/entity"
 	"github.com/Masterminds/squirrel"
 )
 
-type postgresUserStatusRepository struct {
-}
-
-func NewPostgresUserStatusRepository() user_status.SQLUserStatusRepository {
-	return &postgresUserStatusRepository{}
-}
-
-func (postgresUserStatusRepository *postgresUserStatusRepository) SaveOrUpdateInTx(ctx context.Context, use *entity.UserStatusEntity, tx *sql.Tx) (*entity.UserStatusEntity, errors.Errors) {
+func SaveOrUpdateInTx(ctx context.Context, use *entity.UserStatusEntity, tx *sql.Tx) (*entity.UserStatusEntity, errors.Errors) {
 	err := squirrel.
 		Insert("user_status").
 		Columns("user_id", "account_non_expired", "account_non_locked", "credentials_non_expired", "enabled").
@@ -36,7 +28,7 @@ func (postgresUserStatusRepository *postgresUserStatusRepository) SaveOrUpdateIn
 	return use, nil
 }
 
-func (postgresUserStatusRepository *postgresUserStatusRepository) FindOneByUsernameInTx(ctx context.Context, username string, tx *sql.Tx) (*entity.UserStatusEntity, bool, errors.Errors) {
+func FindOneByUsernameInTx(ctx context.Context, username string, tx *sql.Tx) (*entity.UserStatusEntity, bool, errors.Errors) {
 	var use = &entity.UserStatusEntity{}
 	err := squirrel.
 		Select("user_id", "account_non_expired", "account_non_locked", "credentials_non_expired", "enabled").

@@ -3,7 +3,6 @@ package test
 import (
 	"context"
 	"database/sql"
-	dbUtils "github.com/GoncharovMikhail/go-sql/internal/db"
 	"github.com/GoncharovMikhail/go-sql/pkg/db/util"
 	"github.com/jackc/pgx/v4"
 	"log"
@@ -20,9 +19,6 @@ var (
 
 	connConfig      = util.MustParseConfig(PGURL)
 	connConfigToUse = getConnConfigToUse(connConfig)
-
-	DB, _ = dbUtils.GetDb(connConfigToUse)
-	TX    = GetTX(DB)
 )
 
 //todo переделать)))

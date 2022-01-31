@@ -1,26 +1,15 @@
-package sql
+package pg
 
 import (
 	"context"
 	"database/sql"
 	"github.com/GoncharovMikhail/go-sql/errors"
 	dbConsts "github.com/GoncharovMikhail/go-sql/pkg/db/consts"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/user"
 	"github.com/GoncharovMikhail/go-sql/pkg/entity"
 	"github.com/Masterminds/squirrel"
 )
 
-type postgresUserDataRepository struct{}
-
-func NewPostgresUserDataRepository() user.SQLUserRepository {
-	return &postgresUserDataRepository{}
-}
-
-func (postgresUserRepository *postgresUserDataRepository) SaveInTx(
-	ctx context.Context,
-	entity *entity.UserDataEntity,
-	tx *sql.Tx,
-) (*entity.UserDataEntity, errors.Errors) {
+func SaveInTx(ctx context.Context, entity *entity.UserDataEntity, tx *sql.Tx) (*entity.UserDataEntity, errors.Errors) {
 	err := squirrel.
 		Insert("\"user\"").
 		Columns("username", "password").
@@ -60,11 +49,7 @@ func (postgresUserRepository *postgresUserDataRepository) SaveInTx(
 	return entity, nil
 }
 
-func (postgresUserRepository *postgresUserDataRepository) FindOneByUsernameInTx(
-	ctx context.Context,
-	username string,
-	tx *sql.Tx,
-) (*entity.UserDataEntity, bool, errors.Errors) {
+func FindOneByUsernameInTx(ctx context.Context, username string, tx *sql.Tx) (*entity.UserDataEntity, bool, errors.Errors) {
 	var ue = &entity.UserDataEntity{}
 	err := squirrel.
 		Select("*").

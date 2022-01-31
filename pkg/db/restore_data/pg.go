@@ -1,23 +1,15 @@
-package sql
+package restore_data
 
 import (
 	"context"
 	"database/sql"
 	"github.com/GoncharovMikhail/go-sql/errors"
 	dbConsts "github.com/GoncharovMikhail/go-sql/pkg/db/consts"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/restore_data"
 	"github.com/GoncharovMikhail/go-sql/pkg/entity"
 	"github.com/Masterminds/squirrel"
 )
 
-type postgresRestoreDataRepository struct {
-}
-
-func NewPostgresRestoreDataRepository() restore_data.SQLRestoreDataRepository {
-	return &postgresRestoreDataRepository{}
-}
-
-func (postgresRestoreDataRepository *postgresRestoreDataRepository) SaveInTx(ctx context.Context, rde *entity.RestoreDataEntity, tx *sql.Tx) (*entity.RestoreDataEntity, errors.Errors) {
+func SaveInTx(ctx context.Context, rde *entity.RestoreDataEntity, tx *sql.Tx) (*entity.RestoreDataEntity, errors.Errors) {
 	err := squirrel.
 		Insert("restore_data").
 		Columns("user_id", "email", "phone_number").
@@ -61,7 +53,7 @@ func (postgresRestoreDataRepository *postgresRestoreDataRepository) SaveInTx(ctx
 	return rde, nil
 }
 
-func (postgresRestoreDataRepository *postgresRestoreDataRepository) FindOneByUsernameInTx(ctx context.Context, username string, tx *sql.Tx) (*entity.RestoreDataEntity, bool, error) {
+func FindOneByUsernameInTx(ctx context.Context, username string, tx *sql.Tx) (*entity.RestoreDataEntity, bool, error) {
 	var rde = &entity.RestoreDataEntity{}
 	err := squirrel.
 		Select("user_id", "email", "phone_number").
