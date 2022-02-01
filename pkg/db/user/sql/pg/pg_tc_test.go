@@ -27,7 +27,6 @@ var (
 )
 
 func init() {
-	//TC
 	pwd, err := os.Getwd()
 	if err != nil {
 		log.Panicln(err)
