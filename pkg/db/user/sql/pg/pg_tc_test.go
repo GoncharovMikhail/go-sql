@@ -3,10 +3,10 @@ package pg
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"github.com/GoncharovMikhail/go-sql/const/test"
 	"github.com/GoncharovMikhail/go-sql/pkg/db/util"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/stdlib"
+	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
@@ -53,7 +53,7 @@ func init() {
 			"POSTGRES_PASSWORD": postgres,
 			//"PGDATA":            postgres,
 		},
-		ExposedPorts: []string{port, "1000"},
+		ExposedPorts: []string{port},
 		//todo ЭТО ПРОСТО ПИЗДЕЦ БЛЯТЬ В ЧЕМ РАЗНИЧА МЕЖДУ BindMounts И VolumeMounts
 		BindMounts: map[string]string{
 			"/docker-entrypoint-initdb.d": initDbDir,
@@ -70,10 +70,10 @@ func init() {
 			Started:          true,
 		},
 	)
+
 	if err != nil {
 		log.Panicln(err)
 	}
-	_ = container.Start(test.CTX)
 	ports, _ := container.Ports(test.CTX)
 	for porT := range ports {
 		log.Println(porT)
@@ -82,21 +82,13 @@ func init() {
 	log.Println(host)
 	// DB
 	defer mustTerminate(test.CTX, container)
-	err = container.Start(test.CTX)
-	if err != nil {
-		panic(err)
-	}
-	config, err := pgx.ParseConfig("postgresql://localhost:" + port + "/" + postgres)
-	if err != nil {
-		log.Panicln(err)
-	}
-	config.User = postgres
-	config.Password = postgres
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s dbname=%s sslmode=disable",
+		host, port, postgres, postgres)
 
-	db = stdlib.OpenDB(*config)
-	err = db.Ping()
+	// todo сдаюсь, pgx это пиздец)))
+	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
-		log.Panicln(err)
+		log.Panic(err)
 	}
 }
 
