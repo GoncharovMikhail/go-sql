@@ -10,14 +10,14 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 	"log"
-	os "os"
-	filepath "path/filepath"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
 const (
-	version  = `14.1-alpine`
-	postgres = `postgres`
+	version  = "14.1-alpine"
+	postgres = "postgres"
 	port     = "5432"
 )
 
@@ -53,14 +53,15 @@ func init() {
 			"POSTGRES_PASSWORD": postgres,
 			//"PGDATA":            postgres,
 		},
-		ExposedPorts: []string{"5432"},
-		VolumeMounts: map[string]string{
+		ExposedPorts: []string{port, "1000"},
+		//todo ЭТО ПРОСТО ПИЗДЕЦ БЛЯТЬ В ЧЕМ РАЗНИЧА МЕЖДУ BindMounts И VolumeMounts
+		BindMounts: map[string]string{
 			"/docker-entrypoint-initdb.d": initDbDir,
 		},
-		Name:       "postgres",
-		User:       "postgres",
+		Name: postgres,
+		//User:       postgres,
 		WaitingFor: wait.ForLog("database system is ready to accept connections"),
-		AutoRemove: true,
+		//AutoRemove: true,
 	}
 	container, err = testcontainers.GenericContainer(
 		test.CTX,
@@ -72,14 +73,26 @@ func init() {
 	if err != nil {
 		log.Panicln(err)
 	}
+	_ = container.Start(test.CTX)
+	ports, _ := container.Ports(test.CTX)
+	for porT := range ports {
+		log.Println(porT)
+	}
+	host, _ := container.Host(test.CTX)
+	log.Println(host)
 	// DB
 	defer mustTerminate(test.CTX, container)
+	err = container.Start(test.CTX)
+	if err != nil {
+		panic(err)
+	}
 	config, err := pgx.ParseConfig("postgresql://localhost:" + port + "/" + postgres)
 	if err != nil {
 		log.Panicln(err)
 	}
 	config.User = postgres
 	config.Password = postgres
+
 	db = stdlib.OpenDB(*config)
 	err = db.Ping()
 	if err != nil {
