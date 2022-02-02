@@ -99,3 +99,35 @@ func ListAllFilesMatchingPatternsAllOverOsFromSpecifiedDir(dir string,
 	}
 	return result, nil
 }
+
+func GetGoModDir() (string, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	rootDirs, err := ListAllDirsFromStatedDir(pwd)
+	if err != nil {
+		return "", err
+	}
+	var goModDir string = ""
+	for _, rootDir := range rootDirs {
+		err = filepath.Walk(rootDir, func(path string, info fs.FileInfo, err error) error {
+			var match bool
+			match, err = regexp.MatchString("go.mod", path)
+			if err != nil {
+				return err
+			}
+			if match && !info.IsDir() {
+				goModDir = rootDir
+			}
+			return nil
+		})
+		if err != nil {
+			return "", err
+		}
+		if goModDir != "" {
+			break
+		}
+	}
+	return goModDir, nil
+}

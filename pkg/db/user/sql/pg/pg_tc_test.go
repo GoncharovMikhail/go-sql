@@ -21,19 +21,20 @@ import (
 const (
 	version  = "14.1-alpine"
 	postgres = "postgres"
+	password = "password"
 	port     = "5432"
 )
 
 func CreateTestContainer(ctx context.Context, dbname string) (testcontainers.Container, *sql.DB, error) {
-	pwd, err := os.Getwd()
+	goModDir, err := util.GetGoModDir()
 	if err != nil {
-		log.Panicln(err)
+		return nil, nil, err
 	}
 	initDbFiles, errors := util.ListAllFilesMatchingPatternsAllOverOsFromSpecifiedDir(
-		pwd,
+		goModDir,
 		func(info os.FileInfo) bool { return !info.IsDir() },
 		util.Conjunction,
-		".*/resources.*", "\\.sql",
+		".*/resources/migrations.*", "up.sql",
 	)
 	if errors != nil {
 		panic(errors)
