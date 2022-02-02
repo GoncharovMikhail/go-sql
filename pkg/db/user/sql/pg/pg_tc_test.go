@@ -91,7 +91,7 @@ func TestSaveInTx(t *testing.T) {
 		Isolation: sql.LevelDefault,
 	})
 	inTx, errors := SaveInTx(test.CTX, &entity.UserDataEntity{
-		Username: "user",
+		Username: "username",
 		Password: "password",
 	}, tx)
 	if errors != nil {
