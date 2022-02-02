@@ -10,6 +10,7 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
+	"gotest.tools/assert"
 	"log"
 	"os"
 	"path/filepath"
@@ -87,15 +88,23 @@ func init() {
 }
 
 func TestSaveInTx(t *testing.T) {
+	const username = "username"
+	const password = "password"
 	tx := util.MustBeginTx(test.CTX, db, &sql.TxOptions{
 		Isolation: sql.LevelDefault,
 	})
-	inTx, errors := SaveInTx(test.CTX, &entity.UserDataEntity{
-		Username: "username",
-		Password: "password",
-	}, tx)
+	saved, errors := SaveInTx(
+		test.CTX,
+		&entity.UserDataEntity{
+			Username: username,
+			Password: password,
+		},
+		tx,
+	)
 	if errors != nil {
-		panic(errors)
+		log.Panic(errors)
 	}
-	log.Println(inTx)
+	assert.Assert(t, saved.Username == username)
+	assert.Assert(t, saved.Password == password)
+	assert.Assert(t, saved.Id.UUID.String() != "")
 }
