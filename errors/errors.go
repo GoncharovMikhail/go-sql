@@ -6,6 +6,7 @@ type Errors interface {
 	GetErrMsg() string
 	Get() error
 	Cause() Errors
+	SetNext(errorz Errors) Errors
 }
 
 type errors struct {
@@ -24,6 +25,11 @@ func (e *errors) Get() error {
 
 func (e *errors) Cause() Errors {
 	return e.next
+}
+
+func (e *errors) SetNext(errorz Errors) Errors {
+	e.next = errorz
+	return e
 }
 
 func NewErrors(msg string, err error, next Errors) Errors {

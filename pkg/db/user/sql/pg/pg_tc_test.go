@@ -1,110 +1,104 @@
+//todo почему вместе не пробегают? По отдельности все ок
 package pg
 
 import (
 	"database/sql"
-	"fmt"
 	"github.com/GoncharovMikhail/go-sql/const/test"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/tc"
 	"github.com/GoncharovMikhail/go-sql/pkg/db/util"
 	"github.com/GoncharovMikhail/go-sql/pkg/entity"
-	"github.com/docker/go-connections/nat"
+	"github.com/gofrs/uuid"
+	pgUuidType "github.com/jackc/pgtype/ext/gofrs-uuid"
 	_ "github.com/lib/pq"
 	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/wait"
 	"gotest.tools/assert"
 	"log"
-	"os"
-	"path/filepath"
 	"testing"
-	"time"
-)
-
-const (
-	version  = "14.1-alpine"
-	postgres = "postgres"
-	username = postgres
-	password = "password"
-	port     = "5432"
 )
 
 var (
-	container testcontainers.Container
-	db        *sql.DB
+	randomUuid uuid.UUID
+	container  testcontainers.Container
+	db         *sql.DB
 )
 
 func init() {
-	goModDir, err := util.GetGoModDir()
-	if err != nil {
-		log.Panic(err)
-	}
-	initDbFiles, errors := util.ListAllFilesMatchingPatternsAllOverOsFromSpecifiedDir(
-		goModDir,
-		func(info os.FileInfo) bool { return !info.IsDir() },
-		util.Conjunction,
-		".*/resources/migrations.*", "up.sql",
-	)
-	if errors != nil {
-		log.Panic(errors)
-	}
-	//todo
-	initDbDir := filepath.Dir(initDbFiles[0])
-
-	req := testcontainers.GenericContainerRequest{
-		ContainerRequest: testcontainers.ContainerRequest{
-			Image:        postgres + ":" + version,
-			ExposedPorts: []string{port},
-			Cmd:          []string{"postgres", "-c", "fsync=off"},
-
-			Env: map[string]string{
-				"POSTGRES_DB":       postgres,
-				"POSTGRES_USER":     username,
-				"POSTGRES_PASSWORD": password,
-			},
-			BindMounts: map[string]string{
-				"/docker-entrypoint-initdb.d": initDbDir,
-			},
-			WaitingFor: wait.ForSQL(port, postgres, func(port nat.Port) string {
-				return fmt.Sprintf("%s://%s:%s@localhost:%s/%s?sslmode=disable", postgres, username, password, port.Port(), postgres)
-			}).Timeout(time.Second * 5),
-		},
-		Started: true,
-	}
-	container, err = testcontainers.GenericContainer(test.CTX, req)
-	if err != nil {
-		log.Panicf("failed to start container: %s", err)
-	}
-
-	mappedPort, err := container.MappedPort(test.CTX, port)
-	if err != nil {
-		log.Panicf("failed to get container external port: %s", err)
-	}
-
-	log.Println("postgres container ready and running at port: ", mappedPort)
-
-	url := fmt.Sprintf("%s://%s:%s@localhost:%s/%s?sslmode=disable", postgres, username, password, mappedPort.Port(), postgres)
-	db, err = sql.Open("postgres", url)
-	if err != nil {
-		log.Panicf("failed to establish database connection: %s", err)
-	}
+	randomUuid = tc.InitUuid()
+	container = tc.InitContainer()
+	db = tc.InitDb()
 }
 
 func TestSaveInTx(t *testing.T) {
-	const username = "username"
-	const password = "password"
+	uuidStringToUse := randomUuid.String()
+	savedEntity, tx := saveInTx(uuid.Nil, uuidStringToUse, uuidStringToUse)
+	util.MustCommitTx(tx)
+
+	assert.Assert(t, savedEntity.Username == uuidStringToUse)
+	assert.Assert(t, savedEntity.Password == uuidStringToUse)
+	assert.Assert(t, savedEntity.Id.UUID.String() != "")
+}
+
+// todo пофиксить
+func TestUpdateInTx(t *testing.T) {
+	// Save
+	randomUuidStringValue := randomUuid.String()
+	savedEntity, txSaved := saveInTx(uuid.Nil, randomUuidStringValue, randomUuidStringValue)
+	util.MustCommitTx(txSaved)
+	// Update
+	randomUuid = tc.InitUuid()
+	randomUuidStringValue = randomUuid.String()
+	updatedEntity, txUpdated := saveInTx(randomUuid, randomUuidStringValue, randomUuidStringValue)
+	util.MustCommitTx(txUpdated)
+
+	assert.Assert(t, savedEntity != nil)
+	assert.Assert(t, randomUuid == updatedEntity.Id.UUID)
+	assert.Assert(t, randomUuidStringValue == updatedEntity.Username)
+	assert.Assert(t, randomUuidStringValue == updatedEntity.Password)
+}
+
+func TestFindOneByUsernameInTx(t *testing.T) {
+	uuidStringToUse := randomUuid.String()
+	savedUserEntity, txToSaveUser := saveInTx(uuid.Nil, uuidStringToUse, uuidStringToUse)
+	util.MustCommitTx(txToSaveUser)
+	txToFindUser := util.MustBeginTx(test.CTX, db, &sql.TxOptions{
+		Isolation: sql.LevelDefault,
+		ReadOnly:  true,
+	})
+	foundUserEntity, exists, errorz, tx := FindOneByUsernameInTx(test.CTX, uuidStringToUse, txToFindUser)
+	if errorz != nil {
+		log.Panicf("err: %s", errorz)
+	}
+	if !exists {
+		log.Panicf("couldn't find just saved user with username: %s", uuidStringToUse)
+	}
+	util.MustCommitTx(tx)
+
+	assert.Assert(t, foundUserEntity.Username == savedUserEntity.Username)
+	assert.Assert(t, foundUserEntity.Password == savedUserEntity.Password)
+	assert.Assert(t, foundUserEntity.Id == savedUserEntity.Id)
+}
+
+func saveInTx(id uuid.UUID, username, password string) (*entity.UserDataEntity, *sql.Tx) {
 	tx := util.MustBeginTx(test.CTX, db, &sql.TxOptions{
 		Isolation: sql.LevelDefault,
 	})
-	saved, errors := SaveInTx(
+
+	ude := &entity.UserDataEntity{
+		Username: username,
+		Password: password,
+	}
+	if id != uuid.Nil {
+		ude.Id = pgUuidType.UUID{
+			UUID: id,
+		}
+	}
+	saved, errorz, tx := SaveOrUpdateInTx(
 		test.CTX,
-		&entity.UserDataEntity{
-			Username: username,
-			Password: password,
-		},
+		ude,
 		tx,
 	)
-	if errors != nil {
-		log.Panic(errors)
+	if errorz != nil {
+		log.Panic(errorz)
 	}
-	assert.Assert(t, saved.Username == username)
-	assert.Assert(t, saved.Password == password)
-	assert.Assert(t, saved.Id.UUID.String() != "")
+	return saved, tx
 }
