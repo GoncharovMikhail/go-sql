@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	count = "COUNT(*)"
+	count = "count(*) as caunt"
 )
 
 func IsNew(ctx context.Context, tableName, idColumnName string, idValue interface{}, tx *sql.Tx) (bool, errors.Errors, *sql.Tx) {
@@ -28,7 +28,7 @@ func IsNew(ctx context.Context, tableName, idColumnName string, idValue interfac
 		Where(squirrel.Eq{idColumnName: idValue}).
 		PlaceholderFormat(squirrel.Dollar).
 		RunWith(tx).
-		ScanContext(ctx, countOfRowsWithSpecifiedIdValue)
+		ScanContext(ctx, &countOfRowsWithSpecifiedIdValue)
 	if err != nil || countOfRowsWithSpecifiedIdValue != 0 {
 		var errorz errors.Errors
 		errorz, tx = util.TxRollbackErrorHandle(err, tx)

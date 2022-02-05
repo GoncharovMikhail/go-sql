@@ -38,20 +38,18 @@ func TestSaveInTx(t *testing.T) {
 	assert.Assert(t, savedEntity.Id.UUID.String() != "")
 }
 
-// todo пофиксить
 func TestUpdateInTx(t *testing.T) {
 	// Save
 	randomUuidStringValue := randomUuid.String()
 	savedEntity, txSaved := saveInTx(uuid.Nil, randomUuidStringValue, randomUuidStringValue)
 	util.MustCommitTx(txSaved)
 	// Update
-	randomUuid = tc.InitUuid()
-	randomUuidStringValue = randomUuid.String()
-	updatedEntity, txUpdated := saveInTx(randomUuid, randomUuidStringValue, randomUuidStringValue)
+	randomUuidStringValue = savedEntity.Id.UUID.String()
+	updatedEntity, txUpdated := saveInTx(savedEntity.Id.UUID, randomUuidStringValue, randomUuidStringValue)
 	util.MustCommitTx(txUpdated)
 
 	assert.Assert(t, savedEntity != nil)
-	assert.Assert(t, randomUuid == updatedEntity.Id.UUID)
+	assert.Assert(t, randomUuidStringValue == updatedEntity.Id.UUID.String())
 	assert.Assert(t, randomUuidStringValue == updatedEntity.Username)
 	assert.Assert(t, randomUuidStringValue == updatedEntity.Password)
 }
@@ -79,10 +77,6 @@ func TestFindOneByUsernameInTx(t *testing.T) {
 }
 
 func saveInTx(id uuid.UUID, username, password string) (*entity.UserDataEntity, *sql.Tx) {
-	tx := util.MustBeginTx(test.CTX, db, &sql.TxOptions{
-		Isolation: sql.LevelDefault,
-	})
-
 	ude := &entity.UserDataEntity{
 		Username: username,
 		Password: password,
@@ -92,6 +86,10 @@ func saveInTx(id uuid.UUID, username, password string) (*entity.UserDataEntity, 
 			UUID: id,
 		}
 	}
+
+	tx := util.MustBeginTx(test.CTX, db, &sql.TxOptions{
+		Isolation: sql.LevelDefault,
+	})
 	saved, errorz, tx := SaveOrUpdateInTx(
 		test.CTX,
 		ude,

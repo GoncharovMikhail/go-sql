@@ -99,6 +99,9 @@ func update(ctx context.Context, ude *entity.UserDataEntity, tx *sql.Tx) (*entit
 		Set(username, ude.Username).
 		Set(password, ude.Password).
 		Where(squirrel.Eq{idColumnName: ude.Id.UUID}).
+		Suffix(dbConsts.Suffix).
+		PlaceholderFormat(squirrel.Dollar).
+		RunWith(tx).
 		ScanContext(ctx, &ude.Id, &ude.Username, &ude.Password)
 	if err != nil {
 		var errorz errors.Errors
