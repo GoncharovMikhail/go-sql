@@ -1,6 +1,8 @@
 package entity
 
-import pgUuidType "github.com/jackc/pgtype/ext/gofrs-uuid"
+import (
+	pgUuidType "github.com/jackc/pgtype/ext/gofrs-uuid"
+)
 
 type UserDataEntity struct {
 	Id       pgUuidType.UUID `db:"id"`

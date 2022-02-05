@@ -1,31 +1,34 @@
-package pg
+package user_status
 
 import (
 	"context"
 	"database/sql"
 	"github.com/GoncharovMikhail/go-sql/errors"
-	dbConsts "github.com/GoncharovMikhail/go-sql/pkg/db/consts"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/entity_information"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/util"
+	dbConsts "github.com/GoncharovMikhail/go-sql/pkg/db/sql/consts"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/sql/entity_information"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/sql/util"
 	"github.com/GoncharovMikhail/go-sql/pkg/entity"
 	"github.com/Masterminds/squirrel"
 )
 
 const (
-	tableName             = "user_status"
-	idColumnName          = "user_id"
-	accountNonExpired     = "account_non_expired"
-	accountNonLocked      = "account_non_locked"
-	credentialsNonExpired = "credentials_non_expired"
-	enabled               = "enabled"
+	TableName             = "user_status"
+	IdColumnName          = "user_id"
+	AccountNonExpired     = "account_non_expired"
+	AccountNonLocked      = "account_non_locked"
+	CredentialsNonExpired = "credentials_non_expired"
+	Enabled               = "enabled"
 )
 
 func SaveOrUpdateInTx(ctx context.Context, use *entity.UserStatusEntity, tx *sql.Tx) (*entity.UserStatusEntity, errors.Errors, *sql.Tx) {
 	var isNew bool
 	var errorz errors.Errors
-	isNew, errorz, tx = entity_information.IsNew(ctx, tableName, idColumnName, use.UserId, tx)
+	isNew, errorz, tx = entity_information.IsNew(ctx, TableName, IdColumnName, use.UserId, tx)
 	if errorz != nil {
-		return nil, errorz, tx
+		errorz, tx = util.TxRollbackErrorHandle(errorz.Get(), tx)
+		return nil,
+			errorz,
+			tx
 	}
 	if isNew {
 		return save(ctx, use, tx)
@@ -36,9 +39,9 @@ func SaveOrUpdateInTx(ctx context.Context, use *entity.UserStatusEntity, tx *sql
 func FindOneByUsernameInTx(ctx context.Context, username string, tx *sql.Tx) (*entity.UserStatusEntity, bool, errors.Errors) {
 	var use = &entity.UserStatusEntity{}
 	err := squirrel.
-		Select("user_id", "account_non_expired", "account_non_locked", "credentials_non_expired", "enabled").
-		From("user_status").
-		Join("user USING (user_id)").
+		Select(IdColumnName, AccountNonExpired, AccountNonLocked, CredentialsNonExpired, Enabled).
+		From(TableName).
+		Join("\"user\" as u on u.id = "+IdColumnName).
 		Where(squirrel.Eq{"username": username}).
 		RunWith(tx).
 		ScanContext(ctx, &use.AccountNonExpired, &use.AccountNonLocked, &use.CredentialsNonExpired, &use.Enabled)
@@ -50,33 +53,37 @@ func FindOneByUsernameInTx(ctx context.Context, username string, tx *sql.Tx) (*e
 
 func save(ctx context.Context, use *entity.UserStatusEntity, tx *sql.Tx) (*entity.UserStatusEntity, errors.Errors, *sql.Tx) {
 	errSave := squirrel.
-		Insert(tableName).
-		Columns(idColumnName, accountNonExpired, accountNonLocked, credentialsNonExpired, enabled).
+		Insert(TableName).
+		Columns(IdColumnName, AccountNonExpired, AccountNonLocked, CredentialsNonExpired, Enabled).
 		Values(use.UserId, use.AccountNonExpired, use.AccountNonLocked, use.CredentialsNonExpired, use.Enabled).
 		Suffix(dbConsts.Suffix).
 		PlaceholderFormat(squirrel.Dollar).
 		RunWith(tx).
 		ScanContext(ctx, &use.UserId, &use.AccountNonExpired, &use.AccountNonLocked, &use.CredentialsNonExpired, &use.Enabled)
-	var errorz errors.Errors
-	errorz, tx = util.TxRollbackErrorHandle(errSave, tx)
-	if errorz != nil {
-		return nil, errorz, tx
+	if errSave != nil {
+		var errorz errors.Errors
+		errorz, tx = util.TxRollbackErrorHandle(errSave, tx)
+		return nil,
+			errorz,
+			tx
 	}
-	return use, nil, tx
+	return use,
+		nil,
+		tx
 }
 
 func update(ctx context.Context, use *entity.UserStatusEntity, tx *sql.Tx) (*entity.UserStatusEntity, errors.Errors, *sql.Tx) {
 	errUpdate := squirrel.
-		Update(tableName).
-		Set(accountNonExpired, use.AccountNonExpired).
-		Set(accountNonLocked, use.AccountNonLocked).
-		Set(credentialsNonExpired, use.CredentialsNonExpired).
-		Set(enabled, use.Enabled).
-		Where(squirrel.Eq{idColumnName: use.UserId}).
+		Update(TableName).
+		Set(AccountNonExpired, use.AccountNonExpired).
+		Set(AccountNonLocked, use.AccountNonLocked).
+		Set(CredentialsNonExpired, use.CredentialsNonExpired).
+		Set(Enabled, use.Enabled).
+		Where(squirrel.Eq{IdColumnName: use.UserId}).
 		ScanContext(ctx, &use.UserId, &use.AccountNonExpired, &use.AccountNonLocked, &use.CredentialsNonExpired, &use.Enabled)
-	var errorz errors.Errors
-	errorz, tx = util.TxRollbackErrorHandle(errUpdate, tx)
-	if errorz != nil {
+	if errUpdate != nil {
+		var errorz errors.Errors
+		errorz, tx = util.TxRollbackErrorHandle(errUpdate, tx)
 		return nil, errorz, tx
 	}
 	return use, nil, tx

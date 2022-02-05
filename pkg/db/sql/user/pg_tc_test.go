@@ -1,11 +1,11 @@
 //todo почему вместе не пробегают? По отдельности все ок
-package pg
+package user
 
 import (
 	"database/sql"
 	"github.com/GoncharovMikhail/go-sql/const/test"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/tc"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/util"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/sql/tc"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/sql/util"
 	"github.com/GoncharovMikhail/go-sql/pkg/entity"
 	"github.com/gofrs/uuid"
 	pgUuidType "github.com/jackc/pgtype/ext/gofrs-uuid"
@@ -30,7 +30,7 @@ func init() {
 
 func TestSaveInTx(t *testing.T) {
 	uuidStringToUse := randomUuid.String()
-	savedEntity, tx := saveInTx(uuid.Nil, uuidStringToUse, uuidStringToUse)
+	savedEntity, tx := mustSaveOrUpdateInTx(uuid.Nil, uuidStringToUse, uuidStringToUse)
 	util.MustCommitTx(tx)
 
 	assert.Assert(t, savedEntity.Username == uuidStringToUse)
@@ -41,11 +41,11 @@ func TestSaveInTx(t *testing.T) {
 func TestUpdateInTx(t *testing.T) {
 	// Save
 	randomUuidStringValue := randomUuid.String()
-	savedEntity, txSaved := saveInTx(uuid.Nil, randomUuidStringValue, randomUuidStringValue)
+	savedEntity, txSaved := mustSaveOrUpdateInTx(uuid.Nil, randomUuidStringValue, randomUuidStringValue)
 	util.MustCommitTx(txSaved)
 	// Update
 	randomUuidStringValue = savedEntity.Id.UUID.String()
-	updatedEntity, txUpdated := saveInTx(savedEntity.Id.UUID, randomUuidStringValue, randomUuidStringValue)
+	updatedEntity, txUpdated := mustSaveOrUpdateInTx(savedEntity.Id.UUID, randomUuidStringValue, randomUuidStringValue)
 	util.MustCommitTx(txUpdated)
 
 	assert.Assert(t, savedEntity != nil)
@@ -56,7 +56,7 @@ func TestUpdateInTx(t *testing.T) {
 
 func TestFindOneByUsernameInTx(t *testing.T) {
 	uuidStringToUse := randomUuid.String()
-	savedUserEntity, txToSaveUser := saveInTx(uuid.Nil, uuidStringToUse, uuidStringToUse)
+	savedUserEntity, txToSaveUser := mustSaveOrUpdateInTx(uuid.Nil, uuidStringToUse, uuidStringToUse)
 	util.MustCommitTx(txToSaveUser)
 	txToFindUser := util.MustBeginTx(test.CTX, db, &sql.TxOptions{
 		Isolation: sql.LevelDefault,
@@ -76,7 +76,7 @@ func TestFindOneByUsernameInTx(t *testing.T) {
 	assert.Assert(t, foundUserEntity.Id == savedUserEntity.Id)
 }
 
-func saveInTx(id uuid.UUID, username, password string) (*entity.UserDataEntity, *sql.Tx) {
+func mustSaveOrUpdateInTx(id uuid.UUID, username, password string) (*entity.UserDataEntity, *sql.Tx) {
 	ude := &entity.UserDataEntity{
 		Username: username,
 		Password: password,

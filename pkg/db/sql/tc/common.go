@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"github.com/GoncharovMikhail/go-sql/const/test"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/util"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/sql/util"
 	"github.com/docker/go-connections/nat"
 	"github.com/gofrs/uuid"
 	"github.com/testcontainers/testcontainers-go"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"github.com/GoncharovMikhail/go-sql/errors"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/util"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/sql/util"
 	"github.com/Masterminds/squirrel"
 	uuid "github.com/jackc/pgtype/ext/gofrs-uuid"
 	"log"

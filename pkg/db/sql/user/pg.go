@@ -1,28 +1,28 @@
-package pg
+package user
 
 import (
 	"context"
 	"database/sql"
 	"github.com/GoncharovMikhail/go-sql/errors"
-	dbConsts "github.com/GoncharovMikhail/go-sql/pkg/db/consts"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/entity_information"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/util"
+	dbConsts "github.com/GoncharovMikhail/go-sql/pkg/db/sql/consts"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/sql/entity_information"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/sql/util"
 	"github.com/GoncharovMikhail/go-sql/pkg/entity"
 	"github.com/Masterminds/squirrel"
 	"github.com/gofrs/uuid"
 )
 
 const (
-	tableName    = "\"user\""
-	idColumnName = "id"
-	username     = "username"
-	password     = "password"
+	TableName    = "\"user\""
+	IdColumnName = "id"
+	Username     = "username"
+	Password     = "password"
 )
 
 func SaveOrUpdateInTx(ctx context.Context, ude *entity.UserDataEntity, tx *sql.Tx) (*entity.UserDataEntity, errors.Errors, *sql.Tx) {
 	var isNew bool
 	var errorz errors.Errors
-	isNew, errorz, tx = entity_information.IsNew(ctx, tableName, idColumnName, ude.Id, tx)
+	isNew, errorz, tx = entity_information.IsNew(ctx, TableName, IdColumnName, ude.Id, tx)
 	if errorz != nil {
 		errorz, tx = util.TxRollbackErrorHandle(errorz.Get(), tx)
 		return nil,
@@ -39,8 +39,8 @@ func FindOneByUsernameInTx(ctx context.Context, userUsername string, tx *sql.Tx)
 	var ue = &entity.UserDataEntity{}
 	err := squirrel.
 		Select("*").
-		From(tableName).
-		Where(squirrel.Eq{username: userUsername}).
+		From(TableName).
+		Where(squirrel.Eq{Username: userUsername}).
 		PlaceholderFormat(squirrel.Dollar).
 		RunWith(tx).
 		ScanContext(ctx, &ue.Id, &ue.Username, &ue.Password)
@@ -61,7 +61,7 @@ func FindOneByUsernameInTx(ctx context.Context, userUsername string, tx *sql.Tx)
 func save(ctx context.Context, ude *entity.UserDataEntity, tx *sql.Tx) (*entity.UserDataEntity, errors.Errors, *sql.Tx) {
 	columnNames, columnValues := getColumnNamesAndColumnValues(ude)
 	err := squirrel.
-		Insert(tableName).
+		Insert(TableName).
 		Columns(columnNames...).
 		Values(columnValues...).
 		Suffix(dbConsts.Suffix).
@@ -82,11 +82,11 @@ func save(ctx context.Context, ude *entity.UserDataEntity, tx *sql.Tx) (*entity.
 
 func getColumnNamesAndColumnValues(ude *entity.UserDataEntity) ([]string, []interface{}) {
 	columnNames := make([]string, 0)
-	columnNames = append(columnNames, username, password)
+	columnNames = append(columnNames, Username, Password)
 	columnValues := make([]interface{}, 0)
 	columnValues = append(columnValues, ude.Username, ude.Password)
 	if ude.Id.UUID != uuid.Nil {
-		columnNames = append(columnNames, idColumnName)
+		columnNames = append(columnNames, IdColumnName)
 		columnValues = append(columnValues, ude.Id)
 	}
 	return columnNames,
@@ -95,10 +95,10 @@ func getColumnNamesAndColumnValues(ude *entity.UserDataEntity) ([]string, []inte
 
 func update(ctx context.Context, ude *entity.UserDataEntity, tx *sql.Tx) (*entity.UserDataEntity, errors.Errors, *sql.Tx) {
 	err := squirrel.
-		Update(tableName).
-		Set(username, ude.Username).
-		Set(password, ude.Password).
-		Where(squirrel.Eq{idColumnName: ude.Id.UUID}).
+		Update(TableName).
+		Set(Username, ude.Username).
+		Set(Password, ude.Password).
+		Where(squirrel.Eq{IdColumnName: ude.Id.UUID}).
 		Suffix(dbConsts.Suffix).
 		PlaceholderFormat(squirrel.Dollar).
 		RunWith(tx).

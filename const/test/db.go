@@ -3,7 +3,7 @@ package test
 import (
 	"context"
 	"database/sql"
-	"github.com/GoncharovMikhail/go-sql/pkg/db/util"
+	"github.com/GoncharovMikhail/go-sql/pkg/db/sql/util"
 	"github.com/jackc/pgx/v4"
 	"log"
 )
